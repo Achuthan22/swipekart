@@ -1,20 +1,20 @@
 const asyncHandler = require("express-async-handler");
-const userModel = require("../models/userModel");
+const users = require("../models/userModel");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const accessTokenSecert = "achuthan123";
 
 //@desc Register a user
 //@route POST /api/users/register
 //@access PUBLIC
 const registerUser = asyncHandler(async (req, res) => {
- // console.log(req.body);
   const { userName, email, password } = req.body;
   if (!userName || !email || !password) {
     res.status(400);
     throw new Error("All fields are mandatory");
   }
 
-  const userAvailable = userModel.findOne({ email });
- // console.log("userAvailable", userAvailable);
+  const userAvailable = await users.findOne({ email });
   if (userAvailable) {
     res.status(400);
     throw new Error("User already registered");
@@ -22,14 +22,14 @@ const registerUser = asyncHandler(async (req, res) => {
 
   //Hash Password
   const hashedPasword = await bcrypt.hash(password, 10);
- // console.log(hashedPasword);
+  console.log(hashedPasword);
 
-  const user = await userModel.create({
-    username,
+  const user = await users.create({
+    userName,
     email,
     password: hashedPasword,
   });
-  ////console.log(user);
+  console.log(user);
 
   if (user) res.status(201).json({ _id: user.id, email: user.email });
   else {
@@ -43,22 +43,37 @@ const registerUser = asyncHandler(async (req, res) => {
 //@route POST /api/users/login
 //@access PUBLIC
 const loginUser = asyncHandler(async (req, res) => {
-  try {
-    res.json({ message: "Login successfully" });
-  } catch (err) {
-    res.send("Error: " + err);
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("All fields are mandatory");
+  }
+  const user = await users.findOne({ email });
+  // Compare password with hashed password
+  if (user && (await bcrypt.compare(password, user.password))) {
+    const accessToken = jwt.sign(
+      {
+        user: {
+          userName: user.userName,
+          email: user.email,
+          id: user.id,
+        },
+      },
+      accessTokenSecert,
+      { expiresIn: "1m" }
+    );
+    res.status(200).json({ accessToken });
+  } else {
+    res.status(401);
+    throw new Error("email or password is not valid");
   }
 });
 
 //@desc current user
 //@route GET /api/users/currentuser
 //@access PRIVATE
-const currentUser = asyncHandler(async (req, res) => {
-  try {
-    res.json({ message: "Current user information" });
-  } catch (err) {
-    res.send("Error: " + err);
-  }
-});
+const currentUser = (req, res) => {
+  res.status(201).json({ ...req.user });
+};
 
 module.exports = { registerUser, loginUser, currentUser };
