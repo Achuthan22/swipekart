@@ -29,7 +29,7 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password: hashedPasword,
   });
-  //console.log(user);
+  ////console.log(user);
 
   if (user) res.status(201).json({ _id: user.id, email: user.email });
   else {
